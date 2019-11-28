@@ -2,7 +2,8 @@
   (:require net.cgrand.tagsoup
             [clygments.core :as pygments])
   (:import [org.joda.time LocalDate]
-           [org.joda.time.format DateTimeFormat]))
+           [org.joda.time.format DateTimeFormat]
+           [java.nio.file Paths]))
 
 (def date-formatter (DateTimeFormat/forPattern "yyyy.MM.dd"))
 (def pretty-date-formatter (DateTimeFormat/forPattern "MMMM dd, yyyy"))
@@ -71,7 +72,19 @@
 (defn parse
   [dir file]
   (with-open [r (clojure.java.io/reader file :encoding "UTF-8")]
-    (let [url (remove-file-extension (subs (.getPath file) (count (.getPath dir))))
+    (let [relative-path (subs (.getPath file) (count (.getPath dir)))
+          path-segments (->> (Paths/get relative-path (make-array String 0))
+                             (.iterator)
+                             (iterator-seq)
+                             (map #(.toString %))
+                             (vec))
+          url (str
+                "/"
+                (clojure.string/join
+                  "/"
+                  (conj
+                    (vec (butlast path-segments))
+                    (remove-file-extension (last path-segments)))))
           headers (parse-headers (take-while (comp not clojure.string/blank?) (line-seq r)))]
       {:url url
        :headers headers
